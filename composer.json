@@ -1,5 +1,5 @@
 {
-    "name": "schmidt-max/statamic-live-preview",
+    "name": "maxara/statamic-live-preview",
     "description": "Click-to-edit bridge for the Statamic live preview: hovering a block highlights it, clicking jumps to the matching set in the publish form.",
     "license": "MIT",
     "authors": [
@@ -10,12 +10,12 @@
     ],
     "autoload": {
         "psr-4": {
-            "SchmidtMax\\StatamicLivePreview\\": "src"
+            "Maxara\\StatamicLivePreview\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "SchmidtMax\\StatamicLivePreview\\Tests\\": "tests"
+            "Maxara\\StatamicLivePreview\\Tests\\": "tests"
         }
     },
     "require": {
@@ -37,7 +37,7 @@
         },
         "laravel": {
             "providers": [
-                "SchmidtMax\\StatamicLivePreview\\ServiceProvider"
+                "Maxara\\StatamicLivePreview\\ServiceProvider"
             ]
         }
     },

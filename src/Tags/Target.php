@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SchmidtMax\StatamicLivePreview\Tags;
+namespace Maxara\StatamicLivePreview\Tags;
 
 use Statamic\Tags\Tags;
 

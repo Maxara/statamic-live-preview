@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SchmidtMax\StatamicLivePreview\Listeners;
+namespace Maxara\StatamicLivePreview\Listeners;
 
 use Illuminate\Foundation\Vite as LaravelVite;
 use Illuminate\Foundation\ViteException;

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace SchmidtMax\StatamicLivePreview\Tests;
+namespace Maxara\StatamicLivePreview\Tests;
 
-use SchmidtMax\StatamicLivePreview\ServiceProvider;
+use Maxara\StatamicLivePreview\ServiceProvider;
 use Statamic\Testing\AddonTestCase;
 
 abstract class TestCase extends AddonTestCase

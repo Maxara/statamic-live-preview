@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace SchmidtMax\StatamicLivePreview\Tests;
+namespace Maxara\StatamicLivePreview\Tests;
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider as LaravelServiceProvider;
-use SchmidtMax\StatamicLivePreview\Listeners\InjectBridge;
-use SchmidtMax\StatamicLivePreview\ServiceProvider;
-use SchmidtMax\StatamicLivePreview\Tags\Target;
+use Maxara\StatamicLivePreview\Listeners\InjectBridge;
+use Maxara\StatamicLivePreview\ServiceProvider;
+use Maxara\StatamicLivePreview\Tags\Target;
 use Statamic\Events\ResponseCreated;
 use Statamic\Statamic;
 

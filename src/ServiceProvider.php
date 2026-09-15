@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace SchmidtMax\StatamicLivePreview;
+namespace Maxara\StatamicLivePreview;
 
-use SchmidtMax\StatamicLivePreview\Listeners\InjectBridge;
-use SchmidtMax\StatamicLivePreview\Tags\Target;
+use Maxara\StatamicLivePreview\Listeners\InjectBridge;
+use Maxara\StatamicLivePreview\Tags\Target;
 use Statamic\Events\ResponseCreated;
 use Statamic\Providers\AddonServiceProvider;
 

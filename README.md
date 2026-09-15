@@ -11,7 +11,7 @@ sie: `{{ live_preview }}` als Guard, die stabile Replicator-Set-`id`, ein Same-O
 ## Installation
 
 ```bash
-composer require schmidt-max/statamic-live-preview
+composer require maxara/statamic-live-preview
 ```
 
 Die Assets werden von `statamic:install` automatisch nach `public/vendor/statamic-live-preview/`

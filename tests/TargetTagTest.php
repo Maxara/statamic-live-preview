@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace SchmidtMax\StatamicLivePreview\Tests;
+namespace Maxara\StatamicLivePreview\Tests;
 
-use SchmidtMax\StatamicLivePreview\Tags\Target;
+use Maxara\StatamicLivePreview\Tags\Target;
 
 /**
  * The {{ lp_target }} tag may only ever render something during the live preview —
