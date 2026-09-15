@@ -1,12 +1,12 @@
 # Live Preview Bridge
 
-Click-to-Edit für die Statamic Live Preview: Hover hebt einen Page-Builder-Block in der Vorschau
-hervor, ein Klick springt im Control Panel zum passenden Set — aufgeklappt, richtiger Tab,
-markiert.
+Click-to-edit for the Statamic Live Preview: hovering a page-builder block highlights it in the
+preview, and clicking it jumps to the matching set in the control panel — expanded, on the right
+tab, briefly outlined.
 
-Statamic 6 bringt kein Visual Editing mit, aber alle Primitiven dafür. Dieses Addon verbindet
-sie: `{{ live_preview }}` als Guard, die stabile Replicator-Set-`id`, ein Same-Origin-iframe und
-`reveal.element()`.
+Statamic 6 ships no visual editing, but it ships every primitive needed for this. The addon wires
+them together: `{{ live_preview }}` as the guard, the stable replicator set `id`, a same-origin
+iframe, and `reveal.element()`.
 
 ## Installation
 
@@ -14,23 +14,24 @@ sie: `{{ live_preview }}` als Guard, die stabile Replicator-Set-`id`, ein Same-O
 composer require maxara/statamic-live-preview
 ```
 
-Die Assets werden von `statamic:install` automatisch nach `public/vendor/statamic-live-preview/`
-publiziert — das läuft bei jedem `composer install` über `post-autoload-dump`. Manuell:
+Assets are published to `public/vendor/statamic-live-preview/` automatically by
+`statamic:install`, which runs on every `composer install` via `post-autoload-dump`. To do it by
+hand:
 
 ```bash
 php artisan vendor:publish --tag=statamic-live-preview
 ```
 
-Ergänze `.gitignore` um das Publish-Ziel, es ist ein Build-Artefakt:
+Add the publish target to your `.gitignore` — it is a build artifact:
 
 ```
 /public/vendor/statamic-live-preview
 ```
 
-## Verwendung
+## Usage
 
-Ein `{{ lp_target }}` an das äußerste Element jedes Block-Partials — ohne Leerzeichen davor, der
-Tag bringt seins selbst mit:
+Put a single `{{ lp_target }}` on the outermost element of each block partial. Note there is no
+space before `{{` — the tag brings its own:
 
 ```antlers
 <section class="bg-paper px-5 py-12"{{ lp_target }}>
@@ -38,78 +39,94 @@ Tag bringt seins selbst mit:
 </section>
 ```
 
-Der Tag liest die Set-`id` aus dem Kontext der Replicator-Schleife und gibt außerhalb der Live
-Preview **nichts** aus. Der Produktions-Footprint ist null.
+The tag reads the set `id` from the replicator loop's context and renders **nothing** outside the
+live preview, so the production footprint is zero.
 
-### Geteilte Partials
+### Shared partials
 
-Ein Partial, das auch außerhalb des Page Builders gerendert wird, darf nicht auf den Kontext
-zurückfallen — dort wäre `id` die Entry-id. Der Aufrufer reicht die Set-id explizit durch, ein
-leerer Wert unterdrückt die Ausgabe:
+A partial that is also rendered outside the page builder must not fall back to the context —
+there, `id` is the entry id, which the publish form knows nothing about. Let the caller pass the
+set id through explicitly; an empty value suppresses the output:
 
 ```antlers
-{{ partial:partials/hero-media :lp_set="id" }}       {{# im Page Builder #}}
-<section{{ lp_target :set="lp_set" }}>               {{# im geteilten Partial #}}
+{{ partial:partials/hero-media :lp_set="id" }}   {{# inside the page builder #}}
+<section{{ lp_target :set="lp_set" }}>           {{# inside the shared partial #}}
 ```
 
-### Empfohlene Replicator-Einstellung
+### Recommended replicator setting
 
-`collapse: accordion` statt `collapse: true`. Statamic öffnet damit beim Aufklappen immer nur ein
-Set — ein Klick in der Vorschau öffnet den Zielblock und schließt die anderen.
+Use `collapse: accordion` rather than `collapse: true`. Statamic then expands only one set at a
+time, so a click in the preview opens the target block and closes the others.
 
-### Farbe
+### Colour
 
-Neutrales Blau (`#4f8ef7`), bewusst nicht aus einer Projektpalette, damit die Markierung als
-Werkzeug lesbar bleibt. Überschreibbar per `--lp-bridge-accent` — im Frontend über das
-Stylesheet der Site, im Control Panel über ein eigenes CP-Stylesheet.
+The highlight is a neutral blue (`#4f8ef7`) on purpose — it should read as tooling, not as part
+of the page. Override it with the `--lp-bridge-accent` custom property, in your site stylesheet
+for the preview and in a control-panel stylesheet for the editor side.
 
-## Claude-Skill
+## Claude skill
 
-Das Paket bringt einen Claude-Code-Skill mit, der beim Anlegen neuer Page-Builder-Blöcke
-automatisch das richtige Markup verwendet. Bewusst **nicht** automatisch installiert — ein Addon
-schreibt nicht ungefragt in fremde Tool-Konfiguration:
+The package ships a [Claude Code](https://claude.com/claude-code) skill that applies the correct
+markup when new page-builder blocks are created. It is deliberately **not** installed
+automatically — an addon has no business writing into someone else's tooling config unasked:
 
 ```bash
 php artisan vendor:publish --tag=statamic-live-preview-skill
 ```
 
-Landet unter `.claude/skills/statamic-live-preview/`.
+It lands in `.claude/skills/statamic-live-preview/`. It is a copy, so re-publish with `--force`
+after an update that changes it.
 
-## Entwicklung
+## How it works
 
-Der Ordner bringt seine eigene DDEV-Umgebung mit (PHP 8.4, Node 22, keine Datenbank).
+| File | Role |
+| --- | --- |
+| `src/Tags/Target.php` | `{{ lp_target }}` — writes `data-lp-set` |
+| `src/Listeners/InjectBridge.php` | appends `bridge.js` to the preview response |
+| `resources/js/bridge.js` | overlay and click handling inside the iframe, `postMessage` to the CP |
+| `resources/js/PreviewBridge.vue` | control-panel side: id → array path, `reveal.element()` |
+
+An addon's `$vite` renders **only** in the control-panel layout, so the front-end module has no
+auto-injection path. `vite.config.js` therefore builds **both** entry points, while the service
+provider declares only `cp.js` as a `$vite` input: the control panel loads just its own half, and
+`bridge.js` sits in the same manifest, where the `ResponseCreated` listener resolves it from the
+registry the addon populated at boot. No paths are hardcoded and cache busting survives.
+
+The set **id** travels, never an index — `Replicator::performAugmentation()` filters out sets with
+`enabled: false` and reindexes, so the front-end loop index does not match the array position in
+the publish form.
+
+The control-panel side depends on two internals Statamic does not guarantee
+(`<fieldId>-sortable-item` and `[data-replicator-set]`). Both routes are tried in order in
+`PreviewBridge.vue` and fail with a `console.warn` rather than silently. Re-check them after a
+Statamic minor upgrade.
+
+## Development
+
+The repository carries its own DDEV environment (PHP 8.4, Node 22, no database).
 
 ```bash
 ddev start
 ddev composer install
 ddev npm install
-ddev npm run build          # nach jeder JS-Änderung — und vor jedem Commit
+ddev npm run build          # after every JS change — and before every commit
 ddev exec ./vendor/bin/phpunit
 ```
 
-Die `hot`-Datei, die `npm run dev` in `resources/dist/` schreibt, ist gitignored und darf
-niemals ins Paket — in einem Konsumenten würde sie `Vite::isRunningHot()` wahr machen und beide
-Bundles auf einen Dev-Server auf *dessen* localhost zeigen lassen.
+`resources/dist/` is committed: Composer ships only repository content, so without the built
+bundles there would be nothing for a consumer to publish. The `hot` file that `npm run dev`
+writes there is gitignored and must never ship — in a consumer it would make
+`Vite::isRunningHot()` true and point both bundles at a dev server on *their* localhost.
 
-**`resources/dist/` wird ansonsten committet.** Composer liefert nur Repo-Inhalt aus; ohne gebaute Bundles
-gäbe es im Zielprojekt nichts zu publishen. Perspektivisch baut ein Release-Workflow die Assets
-und hängt sie als `dist.tar.gz` an den Release; dann greift `extra.download-dist`
-(`pixelfear/composer-dist-plugin`) wie bei `statamic/seo-pro` und der Schritt entfällt. Das
-Plugin ist in der `composer.json` bereits allow-gelistet.
+Once the package has a release workflow, this can move to `extra.download-dist`
+(`pixelfear/composer-dist-plugin`), the way `statamic/seo-pro` does it, and the committed build
+goes away. The plugin is already allow-listed in `composer.json`.
 
-## Aufbau
+## Requirements
 
-| Datei | Rolle |
-| --- | --- |
-| `src/Tags/Target.php` | `{{ lp_target }}` — schreibt `data-lp-set` |
-| `src/Listeners/InjectBridge.php` | hängt `bridge.js` an die Vorschau-Response |
-| `resources/js/bridge.js` | Overlay und Klick im iframe, `postMessage` ans CP |
-| `resources/js/PreviewBridge.vue` | CP-Seite: id → Array-Pfad, `reveal.element()` |
+- PHP 8.2+
+- Statamic 6
 
-`vite.config.js` baut **beide** Entrypoints, aber nur `cp.js` steht im `$vite`-Input des
-Providers: Das Control Panel lädt nur seinen Teil, `bridge.js` liegt im selben Manifest und wird
-vom Listener daraus aufgelöst.
+## License
 
-Die CP-Seite hängt an zwei nicht öffentlich zugesagten Interna (`<fieldId>-sortable-item` und
-`[data-replicator-set]`). Beide Wege stehen gestaffelt in `PreviewBridge.vue` und scheitern mit
-einer `console.warn` statt still. Bei einem Statamic-Minor-Update gegenprüfen.
+MIT
