@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Seitwerk\StatamicLivePreview\Tests;
+namespace SchmidtMax\StatamicLivePreview\Tests;
 
-use Seitwerk\StatamicLivePreview\Tags\Target;
+use SchmidtMax\StatamicLivePreview\Tags\Target;
 
 /**
  * The {{ lp_target }} tag may only ever render something during the live preview —

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Seitwerk\StatamicLivePreview\Tests;
+namespace SchmidtMax\StatamicLivePreview\Tests;
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider as LaravelServiceProvider;
-use Seitwerk\StatamicLivePreview\Listeners\InjectBridge;
-use Seitwerk\StatamicLivePreview\ServiceProvider;
-use Seitwerk\StatamicLivePreview\Tags\Target;
+use SchmidtMax\StatamicLivePreview\Listeners\InjectBridge;
+use SchmidtMax\StatamicLivePreview\ServiceProvider;
+use SchmidtMax\StatamicLivePreview\Tags\Target;
 use Statamic\Events\ResponseCreated;
 use Statamic\Statamic;
 

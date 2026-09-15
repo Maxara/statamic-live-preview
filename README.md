@@ -10,17 +10,8 @@ sie: `{{ live_preview }}` als Guard, die stabile Replicator-Set-`id`, ein Same-O
 
 ## Installation
 
-Das Paket liegt noch in keiner Registry und wird über ein `path`-Repository eingebunden. In der
-`composer.json` des Projekts:
-
-```json
-"repositories": [
-    { "type": "path", "url": "../statamic-live-preview" }
-]
-```
-
 ```bash
-composer require seitwerk/statamic-live-preview "*@dev"
+composer require schmidt-max/statamic-live-preview
 ```
 
 Die Assets werden von `statamic:install` automatisch nach `public/vendor/statamic-live-preview/`
@@ -30,8 +21,11 @@ publiziert — das läuft bei jedem `composer install` über `post-autoload-dump
 php artisan vendor:publish --tag=statamic-live-preview
 ```
 
-> **Hinweis:** Ein `path`-Repository ist maschinenlokal. Bevor ein Projekt mit CI oder mehreren
-> Entwicklern das Paket einbindet, braucht es ein Remote.
+Ergänze `.gitignore` um das Publish-Ziel, es ist ein Build-Artefakt:
+
+```
+/public/vendor/statamic-live-preview
+```
 
 ## Verwendung
 
@@ -94,10 +88,10 @@ ddev exec ./vendor/bin/phpunit
 ```
 
 **`resources/dist/` wird committet.** Composer liefert nur Repo-Inhalt aus; ohne gebaute Bundles
-gäbe es im Zielprojekt nichts zu publishen. Sobald das Paket ein Remote mit Releases hat, kann
-das auf `extra.download-dist` (`pixelfear/composer-dist-plugin`) umgestellt werden — so macht es
-`statamic/seo-pro` —, dann fällt der Schritt weg. Das Plugin ist in der `composer.json` bereits
-allow-gelistet.
+gäbe es im Zielprojekt nichts zu publishen. Perspektivisch baut ein Release-Workflow die Assets
+und hängt sie als `dist.tar.gz` an den Release; dann greift `extra.download-dist`
+(`pixelfear/composer-dist-plugin`) wie bei `statamic/seo-pro` und der Schritt entfällt. Das
+Plugin ist in der `composer.json` bereits allow-gelistet.
 
 ## Aufbau
 

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Seitwerk\StatamicLivePreview;
+namespace SchmidtMax\StatamicLivePreview;
 
-use Seitwerk\StatamicLivePreview\Listeners\InjectBridge;
-use Seitwerk\StatamicLivePreview\Tags\Target;
+use SchmidtMax\StatamicLivePreview\Listeners\InjectBridge;
+use SchmidtMax\StatamicLivePreview\Tags\Target;
 use Statamic\Events\ResponseCreated;
 use Statamic\Providers\AddonServiceProvider;
 

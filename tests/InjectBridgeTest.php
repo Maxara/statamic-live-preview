@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Seitwerk\StatamicLivePreview\Tests;
+namespace SchmidtMax\StatamicLivePreview\Tests;
 
-use Seitwerk\StatamicLivePreview\Listeners\InjectBridge;
+use SchmidtMax\StatamicLivePreview\Listeners\InjectBridge;
 
 /**
  * The listener delivers the bridge script and the scroll-behavior reset into the

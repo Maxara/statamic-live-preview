@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Seitwerk\StatamicLivePreview\Tags;
+namespace SchmidtMax\StatamicLivePreview\Tags;
 
 use Statamic\Tags\Tags;
 
