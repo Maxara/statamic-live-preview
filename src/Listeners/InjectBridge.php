@@ -23,7 +23,12 @@ use Statamic\Statamic;
  */
 class InjectBridge
 {
-    private const PACKAGE = 'statamic-live-preview';
+    /**
+     * Must match the second half of this package's composer name — that is what
+     * Addon::packageName() derives the Vite registry key from. Pinned by
+     * AddonRegistrationTest against composer.json.
+     */
+    public const PACKAGE = 'statamic-live-preview';
 
     private const ENTRY = 'resources/js/bridge.js';
 
@@ -40,6 +45,13 @@ class InjectBridge
      * without the site having to provide a selector for it.
      */
     private const STYLE = '<style data-lp-bridge>html{scroll-behavior:auto}</style>';
+
+    /**
+     * The preview re-renders on every keystroke. Without this, a misconfigured install
+     * would write a warning several times per second for as long as an editor keeps
+     * typing.
+     */
+    private static bool $warned = false;
 
     public function handle(ResponseCreated $event): void
     {
@@ -62,19 +74,29 @@ class InjectBridge
 
     /**
      * Pure function, so the rewriting stays testable without Vite or a faked request.
+     *
+     * Anchored on the first </head> and the last </body> rather than replacing every
+     * occurrence: a page that renders escaped-but-decoded markup, or carries the
+     * literal inside a script string, would otherwise collect stray copies mid-document.
      */
     public function inject(string $html, string $scriptUrl): string
     {
-        if (str_contains($html, '</head>')) {
-            $html = str_replace('</head>', self::STYLE.'</head>', $html);
+        $html = $this->insertBefore($html, '</head>', self::STYLE, first: true);
+
+        $tag = '<script type="module" src="'.e($scriptUrl).'"></script>';
+
+        return $this->insertBefore($html, '</body>', $tag, first: false);
+    }
+
+    private function insertBefore(string $html, string $needle, string $insert, bool $first): string
+    {
+        $position = $first ? strpos($html, $needle) : strrpos($html, $needle);
+
+        if ($position === false) {
+            return $html;
         }
 
-        if (str_contains($html, '</body>')) {
-            $tag = '<script type="module" src="'.e($scriptUrl).'"></script>';
-            $html = str_replace('</body>', $tag.'</body>', $html);
-        }
-
-        return $html;
+        return substr_replace($html, $insert, $position, 0);
     }
 
     /**
@@ -89,6 +111,12 @@ class InjectBridge
         $vite = Statamic::availableVites(request())[self::PACKAGE] ?? null;
 
         if (! $vite) {
+            $this->warnOnce(sprintf(
+                'No Vite registration named "%s". The addon did not boot as expected — '
+                .'check that its service provider is discovered.',
+                self::PACKAGE,
+            ));
+
             return null;
         }
 
@@ -99,13 +127,26 @@ class InjectBridge
         } catch (ViteException $e) {
             // A missing manifest means the assets were never published. Failing loudly
             // here would break every preview, so say what to do and leave the page be.
-            Log::warning(
-                '[live-preview-bridge] Assets not published, the bridge stays inactive. '
+            $this->warnOnce(
+                'Assets not published, the bridge stays inactive. '
                 .'Run: php artisan vendor:publish --tag='.self::PACKAGE,
-                ['exception' => $e->getMessage()],
+                $e,
             );
 
             return null;
         }
+    }
+
+    private function warnOnce(string $message, ?ViteException $exception = null): void
+    {
+        if (self::$warned) {
+            return;
+        }
+
+        self::$warned = true;
+
+        Log::warning('[live-preview-bridge] '.$message, array_filter([
+            'exception' => $exception?->getMessage(),
+        ]));
     }
 }

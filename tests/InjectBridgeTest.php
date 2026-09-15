@@ -70,4 +70,27 @@ class InjectBridgeTest extends TestCase
 
         $this->assertSame($fragment, $this->inject($fragment));
     }
+
+    /**
+     * A page may legitimately contain the literal closing tags again — inside a script
+     * string, for instance. Replacing every occurrence would scatter copies of the
+     * script through the document, so the injection anchors on the document's own tags:
+     * the first </head> and the last </body>.
+     */
+    public function test_it_injects_once_even_when_the_markup_repeats_the_closing_tags(): void
+    {
+        $page = '<!doctype html><html><head><title>T</title></head><body>'
+            .'<script>var a = "</body>";</script><p>Hi</p></body></html>';
+
+        $html = $this->inject($page);
+
+        $this->assertSame(1, substr_count($html, '<script type="module"'));
+        $this->assertSame(1, substr_count($html, 'scroll-behavior:auto'));
+
+        // The decoy inside the script must be untouched, and ours must sit after it.
+        $this->assertGreaterThan(
+            strpos($html, 'var a ='),
+            strpos($html, '<script type="module"'),
+        );
+    }
 }

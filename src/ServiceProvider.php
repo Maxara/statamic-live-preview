@@ -11,6 +11,10 @@ use Statamic\Providers\AddonServiceProvider;
 
 class ServiceProvider extends AddonServiceProvider
 {
+    private const DIST = __DIR__.'/../resources/dist';
+
+    private const SKILL = __DIR__.'/../resources/skills/statamic-live-preview';
+
     /**
      * Only the control-panel entry is listed here.
      *
@@ -23,7 +27,7 @@ class ServiceProvider extends AddonServiceProvider
             'resources/js/cp.js',
         ],
         'publicDirectory' => 'resources/dist',
-        'hotFile' => __DIR__.'/../resources/dist/hot',
+        'hotFile' => self::DIST.'/hot',
     ];
 
     protected $tags = [
@@ -72,7 +76,7 @@ class ServiceProvider extends AddonServiceProvider
     private function bootSkill(): self
     {
         $this->publishes([
-            __DIR__.'/../resources/skills/live-preview' => base_path('.claude/skills/live-preview'),
+            self::SKILL => base_path('.claude/skills/statamic-live-preview'),
         ], 'statamic-live-preview-skill');
 
         return $this;

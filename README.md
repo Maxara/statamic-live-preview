@@ -73,7 +73,7 @@ schreibt nicht ungefragt in fremde Tool-Konfiguration:
 php artisan vendor:publish --tag=statamic-live-preview-skill
 ```
 
-Landet unter `.claude/skills/live-preview/`.
+Landet unter `.claude/skills/statamic-live-preview/`.
 
 ## Entwicklung
 
@@ -87,7 +87,11 @@ ddev npm run build          # nach jeder JS-Änderung — und vor jedem Commit
 ddev exec ./vendor/bin/phpunit
 ```
 
-**`resources/dist/` wird committet.** Composer liefert nur Repo-Inhalt aus; ohne gebaute Bundles
+Die `hot`-Datei, die `npm run dev` in `resources/dist/` schreibt, ist gitignored und darf
+niemals ins Paket — in einem Konsumenten würde sie `Vite::isRunningHot()` wahr machen und beide
+Bundles auf einen Dev-Server auf *dessen* localhost zeigen lassen.
+
+**`resources/dist/` wird ansonsten committet.** Composer liefert nur Repo-Inhalt aus; ohne gebaute Bundles
 gäbe es im Zielprojekt nichts zu publishen. Perspektivisch baut ein Release-Workflow die Assets
 und hängt sie als `dist.tar.gz` an den Release; dann greift `extra.download-dist`
 (`pixelfear/composer-dist-plugin`) wie bei `statamic/seo-pro` und der Schritt entfällt. Das

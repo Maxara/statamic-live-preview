@@ -21,6 +21,18 @@ class AddonRegistrationTest extends TestCase
 {
     private const PACKAGE = 'statamic-live-preview';
 
+    /**
+     * The listener hardcodes the package name to look itself up in the Vite registry.
+     * Statamic derives that key from the second half of the composer name, so a rename
+     * would silently leave the bridge inactive — the lookup just returns null.
+     */
+    public function test_the_listener_constant_matches_the_composer_package_name(): void
+    {
+        $name = json_decode(file_get_contents(__DIR__.'/../composer.json'), true)['name'];
+
+        $this->assertSame(InjectBridge::PACKAGE, explode('/', $name)[1]);
+    }
+
     public function test_it_registers_the_lp_target_tag(): void
     {
         $this->assertSame(Target::class, app('statamic.tags')['lp_target']);
@@ -34,6 +46,15 @@ class AddonRegistrationTest extends TestCase
         );
 
         $this->assertContains(InjectBridge::class, $listeners);
+
+        // $listen is declared even though src/Listeners is auto-discovered. That is
+        // safe only because getEventListeners() de-duplicates; a second registration
+        // would inject the bridge twice into every previewed page.
+        $this->assertCount(
+            1,
+            array_keys($listeners, InjectBridge::class, strict: true),
+            'The listener must be registered exactly once.',
+        );
     }
 
     public function test_it_adds_the_bridge_component_to_the_live_preview_inputs(): void
@@ -71,10 +92,11 @@ class AddonRegistrationTest extends TestCase
 
     public function test_the_built_manifest_contains_both_entry_points(): void
     {
-        $manifest = json_decode(
-            file_get_contents(__DIR__.'/../resources/dist/build/manifest.json'),
-            true,
-        );
+        $path = __DIR__.'/../resources/dist/build/manifest.json';
+
+        $this->assertFileExists($path, 'Assets are not built. Run: npm install && npm run build');
+
+        $manifest = json_decode(file_get_contents($path), true);
 
         $this->assertArrayHasKey('resources/js/cp.js', $manifest);
         $this->assertArrayHasKey('resources/js/bridge.js', $manifest);
@@ -88,7 +110,23 @@ class AddonRegistrationTest extends TestCase
         );
 
         $this->assertNotEmpty($paths, 'The skill publish tag is not registered.');
-        $this->assertStringEndsWith('.claude/skills/live-preview', reset($paths));
+        $this->assertStringEndsWith('.claude/skills/statamic-live-preview', reset($paths));
+    }
+
+    /**
+     * A committed hot file would make Vite::isRunningHot() true in every consumer and
+     * point both bundles at a dev server on their localhost. resources/dist is tracked
+     * on purpose, so this one file has to be excluded explicitly.
+     */
+    public function test_the_vite_hot_file_is_never_shipped(): void
+    {
+        $this->assertFileDoesNotExist(__DIR__.'/../resources/dist/hot');
+
+        $this->assertStringContainsString(
+            '/resources/dist/hot',
+            file_get_contents(__DIR__.'/../.gitignore'),
+            'The hot file must stay gitignored — resources/dist itself is committed.',
+        );
     }
 
     /**

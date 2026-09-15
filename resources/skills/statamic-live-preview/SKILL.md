@@ -1,5 +1,5 @@
 ---
-name: live-preview
+name: statamic-live-preview
 description: Markiert Page-Builder-Blöcke für die Live-Preview-Bridge mit dem {{ lp_target }}-Tag, damit ein Klick in der Vorschau im Control Panel zum passenden Set springt. Auto-Trigger beim Anlegen oder Ändern eines Page-Builder-Blocks, eines Replicator-Sets, eines Abschnitts oder eines Block-Partials unter resources/views/page_builder/ — sowie bei „Live Preview", „lp_target", „data-lp-set", „Click-to-Edit".
 ---
 

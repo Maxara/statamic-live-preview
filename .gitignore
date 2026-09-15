@@ -4,3 +4,10 @@ vendor
 composer.lock
 .phpunit.result.cache
 .phpunit.cache
+
+# resources/dist is deliberately committed — Composer ships only repo content, so
+# without the built bundles there is nothing for a consumer to publish. The hot file
+# is the one thing in there that must never ship: `npm run dev` writes it, and in a
+# consumer it would make Vite::isRunningHot() true and point every asset URL at a dev
+# server on localhost that isn't running.
+/resources/dist/hot
