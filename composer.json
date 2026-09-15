@@ -1,0 +1,41 @@
+{
+    "name": "seitwerk/statamic-live-preview",
+    "description": "Click-to-edit bridge for the Statamic live preview: hovering a block highlights it, clicking jumps to the matching set in the publish form.",
+    "type": "statamic-addon",
+    "license": "proprietary",
+    "autoload": {
+        "psr-4": {
+            "Seitwerk\\StatamicLivePreview\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Seitwerk\\StatamicLivePreview\\Tests\\": "tests"
+        }
+    },
+    "require": {
+        "php": "^8.2",
+        "statamic/cms": "^6.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.8"
+    },
+    "config": {
+        "allow-plugins": {
+            "pixelfear/composer-dist-plugin": true
+        }
+    },
+    "extra": {
+        "statamic": {
+            "name": "Live Preview Bridge",
+            "description": "Click-to-edit bridge for the Statamic live preview."
+        },
+        "laravel": {
+            "providers": [
+                "Seitwerk\\StatamicLivePreview\\ServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
