@@ -5,6 +5,10 @@
  * postMessage, which then jumps to the matching set. The other direction: the CP can
  * ask for a block to be marked.
  *
+ * It also keeps the iframe on the previewed page: a plain click on a link that would
+ * leave it, or a form submit, is cancelled. Otherwise the preview would show another
+ * page while the publish form still edits the original entry.
+ *
  * Injected into the previewed page by the addon's InjectBridge listener -- so it only
  * ever runs there, with no marker in the layout and no gate in the site's bundle. The
  * data-lp-set attributes come from the {{ lp_target }} tag.
@@ -108,18 +112,50 @@ function onPointerOut(event) {
     if (!flashTimer) hide();
 }
 
-function onClick(event) {
-    const setEl = targetFor(event.target);
-    if (!setEl) return;
+function hasModifier(event) {
+    return event.altKey || event.metaKey || event.ctrlKey || event.shiftKey;
+}
 
-    // Alt/Cmd lets normal navigation through, so links stay testable.
-    if (event.altKey || event.metaKey) return;
+// Anchors on the same page (skip links, table of contents) and links opening another
+// tab or window leave the previewed document in place, so they stay usable.
+function leavesPage(node) {
+    const link = node instanceof Element ? node.closest('a[href]') : null;
+    if (!link) return false;
+
+    const target = link.getAttribute('target');
+    if (target && target !== '_self') return false;
+
+    const url = new URL(link.href, window.location.href);
+    const isSameDocument =
+        url.origin === window.location.origin &&
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search;
+
+    return !(isSameDocument && url.hash);
+}
+
+function onClick(event) {
+    // Modifier clicks open a new tab or window (or download) and leave the iframe in
+    // place, so links stay testable.
+    if (hasModifier(event)) return;
+
+    const setEl = targetFor(event.target);
+    if (!setEl) {
+        if (leavesPage(event.target)) event.preventDefault();
+
+        return;
+    }
+
     event.preventDefault();
 
     window.parent.postMessage(
         { name: OUTGOING, set: setEl.getAttribute(SET_ATTR) },
         window.location.origin,
     );
+}
+
+function onSubmit(event) {
+    event.preventDefault();
 }
 
 function onMessage(event) {
@@ -160,6 +196,7 @@ function init() {
     document.addEventListener('pointerover', onPointerOver);
     document.addEventListener('pointerout', onPointerOut);
     document.addEventListener('click', onClick);
+    document.addEventListener('submit', onSubmit);
     window.addEventListener('message', onMessage);
 }
 

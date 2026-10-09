@@ -58,6 +58,14 @@ set id through explicitly; an empty value suppresses the output:
 Use `collapse: accordion` rather than `collapse: true`. Statamic then expands only one set at a
 time, so a click in the preview opens the target block and closes the others.
 
+### Navigation inside the preview
+
+The preview iframe stays on the page being edited. A plain click on a link that would leave it —
+menu, footer, a link inside a block — and every form submit are cancelled; otherwise the preview
+would show another page while the publish form still edits the original entry. Links that stay
+on the page (`#anchor`) or open a new tab (`target="_blank"`) work as usual, and Alt/Cmd/Ctrl/Shift
++ click lets the browser handle a link normally, so links stay testable.
+
 ### Colour
 
 The highlight is a neutral blue (`#4f8ef7`) on purpose — it should read as tooling, not as part
