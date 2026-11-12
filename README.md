@@ -5,8 +5,10 @@ preview, and clicking it jumps to the matching set in the control panel — expa
 tab, briefly outlined.
 
 Statamic 6 ships no visual editing, but it ships every primitive needed for this. The addon wires
-them together: `{{ live_preview }}` as the guard, the stable replicator set `id`, a same-origin
-iframe, and `reveal.element()`.
+them together: `{{ live_preview }}` as the guard, the stable set `id`, a same-origin iframe, and
+`reveal.element()`.
+
+Works with both kinds of page builder: a **Replicator** field and a **Bard** field with sets.
 
 ## Installation
 
@@ -39,8 +41,24 @@ space before `{{` — the tag brings its own:
 </section>
 ```
 
-The tag reads the set `id` from the replicator loop's context and renders **nothing** outside the
-live preview, so the production footprint is zero.
+The tag reads the set `id` from the loop's context and renders **nothing** outside the live
+preview, so the production footprint is zero.
+
+### Bard
+
+Bard sets carry a stable id just like replicator sets, so the same `{{ lp_target }}` works in
+their partials. The one exception is the partial for Bard's **text chunks** (`type: text`, usually
+`sets/text`): they are not sets, have no id of their own, and the context would fall back to the
+entry id. Leave that partial unannotated — text is edited inline in the Bard field anyway.
+
+A partial whose outermost element sits inside a scope that brings its own `id` (a global set, a
+`collection` loop) must be wrapped, or the tag reads the wrong id:
+
+```antlers
+<div{{ lp_target }}>
+    {{ my_global_set }} … {{ /my_global_set }}
+</div>
+```
 
 ### Shared partials
 
@@ -55,8 +73,9 @@ set id through explicitly; an empty value suppresses the output:
 
 ### Recommended replicator setting
 
-Use `collapse: accordion` rather than `collapse: true`. Statamic then expands only one set at a
-time, so a click in the preview opens the target block and closes the others.
+Use `collapse: accordion` rather than `collapse: true` — on the Replicator or Bard field alike.
+Statamic then expands only one set at a time, so a click in the preview opens the target block
+and closes the others.
 
 ### Navigation inside the preview
 
@@ -92,7 +111,7 @@ after an update that changes it.
 | `src/Tags/Target.php` | `{{ lp_target }}` — writes `data-lp-set` |
 | `src/Listeners/InjectBridge.php` | appends `bridge.js` to the preview response |
 | `resources/js/bridge.js` | overlay and click handling inside the iframe, `postMessage` to the CP |
-| `resources/js/PreviewBridge.vue` | control-panel side: id → array path, `reveal.element()` |
+| `resources/js/PreviewBridge.vue` | control-panel side: id → path (replicator `_id`, Bard `attrs.id`), `reveal.element()` |
 
 An addon's `$vite` renders **only** in the control-panel layout, so the front-end module has no
 auto-injection path. `vite.config.js` therefore builds **both** entry points, while the service
@@ -104,10 +123,16 @@ The set **id** travels, never an index — `Replicator::performAugmentation()` f
 `enabled: false` and reindexes, so the front-end loop index does not match the array position in
 the publish form.
 
-The control-panel side depends on two internals Statamic does not guarantee
-(`<fieldId>-sortable-item` and `[data-replicator-set]`). Both routes are tried in order in
-`PreviewBridge.vue` and fail with a `console.warn` rather than silently. Re-check them after a
-Statamic minor upgrade.
+The control-panel side depends on internals Statamic does not guarantee. Every lookup has a
+fallback route, tried in order in `PreviewBridge.vue`, and the last one fails with a
+`console.warn` rather than silently. Re-check them after a Statamic minor upgrade:
+
+| Internal | Used for |
+| --- | --- |
+| Field DOM id `field_<container>_<path>` (`Publish/Field.vue`; up to 6.2x `field_<path>`) | every lookup — the container name comes from `injectPublishContext().name`, both formats are tried |
+| `<fieldId>-sortable-item`, then `[data-replicator-set]` | replicator set element |
+| Field id prefix `<set path>_attrs_values_` + `[data-node-view-wrapper]`, then the order of `.ProseMirror`'s children | Bard set element |
+| `reveal.mount()` on the Bard set's container (`Bard/Set.vue`) | expanding a Bard set — so the container, not the node view wrapper, is handed to `reveal.element()` |
 
 ## Development
 

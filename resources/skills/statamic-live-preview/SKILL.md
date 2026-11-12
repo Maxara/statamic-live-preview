@@ -1,6 +1,6 @@
 ---
 name: statamic-live-preview
-description: Annotates page-builder blocks for the Live Preview bridge with the {{ lp_target }} tag, so that clicking a block in the preview jumps to its set in the control panel. Use when creating or editing a page-builder block, a replicator set, a section, or a block partial under resources/views/page_builder/ — and on any mention of "Live Preview", "lp_target", "data-lp-set" or "click-to-edit".
+description: Annotates page-builder blocks for the Live Preview bridge with the {{ lp_target }} tag, so that clicking a block in the preview jumps to its set in the control panel. Use when creating or editing a page-builder block, a replicator or Bard set, a section, or a block partial under resources/views/page_builder/ or resources/views/sets/ — and on any mention of "Live Preview", "lp_target", "data-lp-set" or "click-to-edit".
 ---
 
 # Live Preview markup for page-builder blocks
@@ -47,9 +47,29 @@ form knows nothing about. The caller passes the set id through explicitly:
 An empty `set` parameter suppresses the output. A caller without `lp_set` — a location detail
 page, say — correctly gets nothing.
 
-## Replicator setting
+## Bard page builders
 
-Use `collapse: accordion` on the page-builder replicator, not `collapse: true`. Statamic then
+Bard sets have a stable id like replicator sets, so their partials get `{{ lp_target }}` the same
+way. **Except the partial for Bard's text chunks** (`type: text`, usually `sets/text`): those are
+not sets and have no id — the context would fall back to the entry id. Never annotate it.
+
+## Scopes that bring their own `id`
+
+If the block's outermost element sits inside a tag pair that sets its own `id` — a global set
+(`{{ my_global }}`), a `{{ collection:… }}` loop — the tag would read that id. Wrap the scope and
+annotate the wrapper instead:
+
+```antlers
+<div{{ lp_target }}>
+    {{ prices_global }} <section>…</section> {{ /prices_global }}
+</div>
+```
+
+The same goes for a block without a single root element (a loop of teasers): wrap it.
+
+## Collapse setting
+
+Use `collapse: accordion` on the page-builder replicator or Bard field, not `collapse: true`. Statamic then
 expands only one set at a time, and `reveal.element()` triggers exactly that behaviour through
 the `expanded` event: a click in the preview opens the target block and closes the others. Pure
 configuration, no code.

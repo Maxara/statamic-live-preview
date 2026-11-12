@@ -26,15 +26,43 @@ const STYLES = `
     }
 `;
 
-const { values } = injectPublishContext();
+// `name` is the publish container's name. Since Statamic 6.3x it is part of every field's
+// DOM id (field_<container>_<path>), and it defaults to a random uniqid -- so the id can
+// only be rebuilt from the context, not guessed.
+const { values, name: containerName } = injectPublishContext();
 
 let highlightTimer = null;
 
 /**
- * Path of the set carrying this _id within the publish values, e.g. "page_builder.2".
+ * A Bard set node: { type: 'set', attrs: { id, enabled, values } }.
+ *
+ * Replicator rows always carry _id, so a replicator set that happens to be called "set"
+ * and has a field "attrs" is not mistaken for one.
+ */
+function isBardSet(row) {
+    return (
+        row?.type === 'set' &&
+        !('_id' in row) &&
+        typeof row.attrs === 'object' &&
+        row.attrs !== null &&
+        typeof row.attrs.id === 'string'
+    );
+}
+
+/** Replicator rows carry their id as _id, Bard set nodes as attrs.id. */
+function setIdOf(row) {
+    if (!row || typeof row !== 'object') return undefined;
+
+    return row._id ?? (isBardSet(row) ? row.attrs.id : undefined);
+}
+
+/**
+ * Path of the set carrying this id within the publish values, e.g. "page_builder.2" for
+ * a replicator or "content.3" for a Bard set (the index of the node in the document).
  *
  * The loop index from the front end is unusable: augmentation filters out sets with
- * enabled: false and reindexes. So the id travels, and the index is resolved here.
+ * enabled: false and, for Bard, interleaves text chunks. So the id travels, and the
+ * index is resolved here.
  */
 function findSetPath(value, setId, prefix = '') {
     if (Array.isArray(value)) {
@@ -43,7 +71,7 @@ function findSetPath(value, setId, prefix = '') {
             if (!row || typeof row !== 'object') continue;
 
             const path = prefix ? `${prefix}.${index}` : String(index);
-            if (row._id === setId) return path;
+            if (setIdOf(row) === setId) return path;
 
             const nested = findSetPath(row, setId, path);
             if (nested) return nested;
@@ -64,46 +92,126 @@ function findSetPath(value, setId, prefix = '') {
     return null;
 }
 
-/** Publish/Field.vue assigns the DOM id as field_<path with _ instead of .>. */
-function fieldId(path) {
-    return `field_${path.replaceAll('.', '_')}`;
+function valueAt(path) {
+    return path.split('.').reduce((value, key) => value?.[key], values.value);
 }
 
 /**
- * Root element of the set.
+ * Prefixes a field's DOM id can start with, most specific first.
  *
- * A collapsed set does not render its fields, so there is no field element to hold on
- * to -- we go by position instead, because the DOM order of the sets matches the array
- * order.
+ * Publish/Field.vue builds the id as field_<container>_<path with _ instead of .>; up to
+ * Statamic 6.2x it was field_<path>. Both are tried so the bridge works on either side
+ * of that change.
+ */
+function fieldIdPrefixes() {
+    const name = containerName?.value;
+
+    return name ? [`field_${name}_`, 'field_'] : ['field_'];
+}
+
+function elementForField(path) {
+    const suffix = path.replaceAll('.', '_');
+
+    for (const prefix of fieldIdPrefixes()) {
+        const el = document.getElementById(prefix + suffix);
+        if (el) return { el, id: prefix + suffix };
+    }
+
+    return null;
+}
+
+/** field_<container>_content_3_attrs_values_text -> content_3_attrs_values_text */
+function pathFromFieldId(id) {
+    const prefix = fieldIdPrefixes().find((candidate) => id.startsWith(candidate));
+
+    return prefix ? id.slice(prefix.length) : null;
+}
+
+/**
+ * The set in the DOM: `target` goes to reveal.element(), `box` gets the highlight.
  *
- * Both routes depend on CP internals that Statamic does not guarantee, hence one after
- * the other with a fallback:
- *   1. the sortable class Replicator.vue assigns per set (<fieldId>-sortable-item)
- *   2. [data-replicator-set] within the replicator field, nested ones filtered out
+ * Both depend on CP internals that Statamic does not guarantee, hence several routes
+ * one after the other, each failing over to the next.
  */
 function findSetElement(setPath) {
     const parts = setPath.split('.');
     const index = Number(parts.pop());
-    const replicatorId = fieldId(parts.join('.'));
+    const parentPath = parts.join('.');
 
-    const byClass = document.getElementsByClassName(`${replicatorId}-sortable-item`);
-    if (byClass[index]) return byClass[index];
-
-    const wrapper = document.getElementById(replicatorId);
-    if (!wrapper) return null;
-
-    return (
-        [...wrapper.querySelectorAll('[data-replicator-set]')].filter(
-            (el) => el.parentElement?.closest('[data-replicator-set]') === null,
-        )[index] ?? null
-    );
+    return isBardSet(valueAt(setPath))
+        ? findBardSetElement(setPath, parentPath, index)
+        : findReplicatorSetElement(parentPath, index);
 }
 
-/** The set's box -- depending on the route, setEl is that box or its container. */
-function setBox(setEl) {
-    return setEl.matches('[data-replicator-set]')
-        ? setEl
-        : (setEl.querySelector('[data-replicator-set]') ?? setEl);
+/**
+ * A collapsed replicator set does not render its fields, so there is no field element to
+ * hold on to -- we go by position instead, because the DOM order of the sets matches the
+ * array order.
+ *   1. the sortable class Replicator.vue assigns per set (<fieldId>-sortable-item)
+ *   2. [data-replicator-set] within the replicator field, nested ones filtered out
+ */
+function findReplicatorSetElement(replicatorPath, index) {
+    const replicator = elementForField(replicatorPath);
+    const ids = replicator
+        ? [replicator.id]
+        : fieldIdPrefixes().map((prefix) => prefix + replicatorPath.replaceAll('.', '_'));
+
+    for (const id of ids) {
+        const byClass = document.getElementsByClassName(`${id}-sortable-item`)[index];
+        if (byClass) return { target: byClass, box: replicatorBox(byClass) };
+    }
+
+    if (!replicator) return null;
+
+    const set = [...replicator.el.querySelectorAll('[data-replicator-set]')].filter(
+        (el) => el.parentElement?.closest('[data-replicator-set]') === null,
+    )[index];
+
+    return set ? { target: set, box: set } : null;
+}
+
+/** The sortable item wraps the set's box. */
+function replicatorBox(el) {
+    return el.matches('[data-replicator-set]') ? el : (el.querySelector('[data-replicator-set]') ?? el);
+}
+
+/**
+ * A Bard set is a ProseMirror node view. Its fields stay in the DOM while collapsed
+ * (v-show), and Bard/Set.vue registers its container with reveal.mount() -- so reveal
+ * expands it once it is handed the container, never the wrapper around it.
+ *   1. any field of the set (id prefix <set path>_attrs_values_), up to its node view
+ *   2. the set's position among the editor's top-level nodes, which matches the index
+ */
+function findBardSetElement(setPath, bardPath, index) {
+    const fieldPrefix = `${setPath.replaceAll('.', '_')}_attrs_values_`;
+
+    for (const prefix of fieldIdPrefixes()) {
+        const field = document.querySelector(`[id^="${prefix}${fieldPrefix}"]`);
+        const container = bardContainer(field?.closest('[data-node-view-wrapper]'));
+        if (container) return { target: container, box: container };
+    }
+
+    const editor = elementForField(bardPath)?.el.querySelector('.ProseMirror');
+    if (!editor) return null;
+
+    // ProseMirror renders one DOM child per top-level node; gap cursor and widgets are
+    // decorations that sit in between and must not shift the count.
+    const node = [...editor.children].filter(
+        (el) => !el.matches('.ProseMirror-gapcursor, .ProseMirror-widget'),
+    )[index];
+
+    const container = bardContainer(
+        node?.matches('[data-node-view-wrapper]') ? node : node?.querySelector('[data-node-view-wrapper]'),
+    );
+
+    return container ? { target: container, box: container } : null;
+}
+
+/** The node view wrapper holds the set's container as its (non-editable) child. */
+function bardContainer(wrapper) {
+    if (!wrapper) return null;
+
+    return wrapper.querySelector(':scope > [contenteditable="false"]') ?? wrapper.firstElementChild ?? wrapper;
 }
 
 /**
@@ -166,18 +274,18 @@ async function onMessage(event) {
         return;
     }
 
-    const setEl = findSetElement(setPath);
-    if (!setEl) {
+    const found = findSetElement(setPath);
+    if (!found) {
         console.warn(`[live-preview-bridge] No DOM element for set "${setPath}" found.`);
 
         return;
     }
 
-    // reveal.element() fires the reveal callbacks of the replicator set and the publish
-    // tab on its way up -- so it expands the set and switches the tab.
-    reveal.element(setEl);
+    // reveal.element() fires the reveal callbacks of the set and the publish tab on its
+    // way up -- so it expands the set and switches the tab.
+    reveal.element(found.target);
 
-    const box = setBox(setEl);
+    const { box } = found;
     highlight(box);
 
     // reveal.element() scrolls in a nextTick of its own; correct afterwards or it
@@ -195,11 +303,12 @@ function onFocusIn(event) {
     const iframe = document.getElementById('live-preview-iframe');
     if (!iframe) return;
 
-    // field_page_builder_2_headline -> Set page_builder.2
-    const match = fieldEl.id.match(/^field_(.*?)_(\d+)(?:_|$)/);
+    // Replicator: field_<container>_page_builder_2_headline     -> page_builder.2
+    // Bard:       field_<container>_content_3_attrs_values_text -> content.3
+    const match = pathFromFieldId(fieldEl.id)?.match(/^(.*?)_(\d+)(?:_|$)/);
     if (!match) return;
 
-    const set = values.value?.[match[1]]?.[Number(match[2])]?._id;
+    const set = setIdOf(values.value?.[match[1]]?.[Number(match[2])]);
     if (!set) return;
 
     iframe.contentWindow.postMessage({ name: OUTGOING, set }, window.location.origin);
