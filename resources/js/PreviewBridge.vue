@@ -149,6 +149,11 @@ function findSetElement(setPath) {
  * array order.
  *   1. the sortable class Replicator.vue assigns per set (<fieldId>-sortable-item)
  *   2. [data-replicator-set] within the replicator field, nested ones filtered out
+ *
+ * The target is always the inner [data-replicator-set] box, never the sortable item
+ * around it. reveal.element() only walks *up* from the element it gets, and where
+ * Replicator/Set.vue registers its expand callback moved: up to Statamic 6.3x on the
+ * sortable item, since then on the inner box. Starting at the box reaches both.
  */
 function findReplicatorSetElement(replicatorPath, index) {
     const replicator = elementForField(replicatorPath);
@@ -158,7 +163,11 @@ function findReplicatorSetElement(replicatorPath, index) {
 
     for (const id of ids) {
         const byClass = document.getElementsByClassName(`${id}-sortable-item`)[index];
-        if (byClass) return { target: byClass, box: replicatorBox(byClass) };
+        if (!byClass) continue;
+
+        const box = replicatorBox(byClass);
+
+        return { target: box, box };
     }
 
     if (!replicator) return null;
